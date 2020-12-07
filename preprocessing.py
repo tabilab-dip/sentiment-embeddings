@@ -12,7 +12,7 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 from turkish.deasciifier import Deasciifier
-
+import morphological_parser_sak.mp as mp
 import constants
 
 try:
@@ -179,7 +179,7 @@ class Preprocessing:
             turkish_stopwords = set([word for word in f])
         return turkish_stopwords
 
-    def extract_parsed_blocks(self, file_name):
+    def extract_parsed_blocks(self, parsed_reviews):
         """
         This helper method creates blocks with respect to the parsed and disambiguated Turkish texts.
         In this case, this is used to extract multi-word expressions (MWEs) in Turkish.
@@ -194,24 +194,24 @@ class Preprocessing:
         blocks = []
         block = []
         suffix_morpho_symbols = {"-lh": "li", "without": "_", "neg": "_"}
-        with open(file_name, "r") as f:
-            for line in f:
-                line = UnicodeTr(line).lower()
-                if line[0:2] == "<s" or line[0:3] == "</s":
-                    continue
-                elif line[0:4] == block_separator:  # Separator used to distinguish between different idioms/proverbs
+        lines = [line for line in parsed_reviews.split("\n") if line]
+        for line in lines:
+            line = UnicodeTr(line).lower()
+            if line[0:2] == "<s" or line[0:3] == "</s":
+                continue
+            elif line[0:4] == block_separator:  # Separator used to distinguish between different idioms/proverbs
 
-                    blocks.append(" ".join(block))
-                    block = []
-                else:
-                    correct_parse = line.split(" ")[1]
-                    parse_ind = correct_parse.index("[")
-                    root, remaind = correct_parse[:parse_ind], correct_parse[parse_ind:]
-                    if "(ı" in root:
-                        root = root[:root.index("(ı")]
-                    root += "".join([symbol for suffix, symbol in suffix_morpho_symbols.items()
-                                     if suffix in remaind])
-                    block.append(root)
+                blocks.append(" ".join(block))
+                block = []
+            else:
+                correct_parse = line.split(" ")[1]
+                parse_ind = correct_parse.index("[")
+                root, remaind = correct_parse[:parse_ind], correct_parse[parse_ind:]
+                if "(ı" in root:
+                    root = root[:root.index("(ı")]
+                root += "".join([symbol for suffix, symbol in suffix_morpho_symbols.items()
+                                 if suffix in remaind])
+                block.append(root)
 
         return blocks
 
@@ -379,14 +379,11 @@ class Preprocessing:
         :return: Corpus reviews after some preprocessing operations are performed.
         :rtype: list
         """
-
         review_separator = "sepx"
         reviews = [self.turkish_tokenize(review) for review in reviews]
-
         updated_reviews = []
         for review in reviews:
             updated_reviews.append([self.suffix_expansion(word) for word in review])
-
         reviews_with_sep = [review + [review_separator] for review in reviews]
         return reviews_with_sep
 
@@ -394,37 +391,32 @@ class Preprocessing:
         """
         This helper method parses and disambiguates the text in Turkish.
         In this respect, Haşim Sak's morphological analyser tools are leveraged.
-        To employ these external tools, the use of Python 2 is required.
-        Therefore, I had to mix Python 2 and Python 3 for this project.
-        Apart from this helper method, all the other code works with Python 3.7 or a more recent version.
-
+        
         :param reviews: Corpus reviews in Turkish.
         :type reviews: list
         :return: Parsed and disambiguated forms of the Turkish text.
             Only roots and discriminative morphemes (e.g. negation) are taken into account.
         :rtype: list
         """
+        sentences = [" ".join([word for word in review]) for review in reviews]
+        # split into max of 2**12 bytes
+        parsed_reviews = ""
+        msg_arr = []
+        msg_size = 0
+        threshold = 2**10
+        for i, sentence in enumerate(sentences):
+            msg_size += len(sentence)
+            if msg_size >= threshold:
+                msg_str = "\n".join(msg_arr)
+                parsed_reviews += mp.evaluate(msg_str)
+                msg_size = len(sentence)
+                msg_arr = []
+            msg_arr.append(sentence)
+        if msg_arr:
+            msg_str = "\n".join(msg_arr)
+            parsed_reviews += mp.evaluate(msg_str)
 
-        print("Parsing and disambiguation are being performed.")
-        with open(os.path.join("input", "Turkish_Morpho", "MP", "data_file.txt"), "w") as file:
-            for review in reviews:
-                review_str = " ".join([word for word in review])
-                file.write(review_str + "\n")
-
-        # python parse_corpus.py test.txt > test.parse.txt
-        python2_command = "python parse_corpus.py data_file.txt > " + \
-                          os.path.join("..", "..", "..", "sentiment.parse.txt")
-
-        subprocess.call(python2_command, shell=True, cwd=os.path.join("input", "Turkish_Morpho", "MP"))
-
-        # perl md.pl -disamb model.txt.. / MP / test.parse.txt test.disamb.txt
-        perl_command = "perl md.pl -disamb model.txt " + \
-                       os.path.join("..", "..", "..", "sentiment.parse.txt") + " " + \
-                       os.path.join("..", "..", "..", "sentiment.disamb.txt")
-
-        subprocess.run(perl_command.split(), cwd=os.path.join("input", "Turkish_Morpho", "MD-2.0"))
-
-        reviews = self.extract_parsed_blocks("sentiment.disamb.txt")
+        reviews = self.extract_parsed_blocks(parsed_reviews)
         return reviews
 
     def preprocess_after_disamb(self, reviews):

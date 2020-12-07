@@ -1,0 +1,19 @@
+RC!
+42946687
+failed to listen on port 34216: Address already in use at morphological_parser_sak/md.pl line 46.
+ERRRRR:   [Errno 32] Broken pipe
+DEBUG:root:Checking perl...
+DEBUG:root:WARNING: Perl process is died for some reason. Restarting.
+DEBUG:root:Starting perl script...
+DEBUG:root:Connection to perl script is established
+42946687
+
+RC!
+42946687
+failed to listen on port 34216: Address already in use at morphological_parser_sak/md.pl line 46.
+ERRRRR:   [Errno 32] Broken pipe
+DEBUG:root:Checking perl...
+DEBUG:root:WARNING: Perl process is died for some reason. Restarting.
+DEBUG:root:Starting perl script...
+DEBUG:root:Connection to perl script is established
+42946687
