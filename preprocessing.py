@@ -12,7 +12,7 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 from turkish.deasciifier import Deasciifier
-import morphological_parser_sak.mp as mp
+import morphological_parser.mp as mp
 import constants
 
 try:
@@ -398,24 +398,9 @@ class Preprocessing:
             Only roots and discriminative morphemes (e.g. negation) are taken into account.
         :rtype: list
         """
-        sentences = [" ".join([word for word in review]) for review in reviews]
-        # split into max of 2**12 bytes
-        parsed_reviews = ""
-        msg_arr = []
-        msg_size = 0
-        threshold = 2**10
-        for i, sentence in enumerate(sentences):
-            msg_size += len(sentence)
-            if msg_size >= threshold:
-                msg_str = "\n".join(msg_arr)
-                parsed_reviews += mp.evaluate(msg_str)
-                msg_size = len(sentence)
-                msg_arr = []
-            msg_arr.append(sentence)
-        if msg_arr:
-            msg_str = "\n".join(msg_arr)
-            parsed_reviews += mp.evaluate(msg_str)
-
+        sentences = "\n".join([" ".join([word for word in review]) 
+                                        for review in reviews])
+        parsed_reviews = mp.evaluate(sentences)
         reviews = self.extract_parsed_blocks(parsed_reviews)
         return reviews
 

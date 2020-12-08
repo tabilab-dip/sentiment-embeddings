@@ -34,6 +34,5 @@ def evaluate(text):
         line = pre.preprocess_one_line(line)
         sentiment = svm.test_model(model, sf, tr_vecs, imp, line)[0][0]
         sentiment = "Positive" if sentiment == "P" else "Negative"
-        print(sentiment)
         return sentiment
 
